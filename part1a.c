@@ -166,6 +166,17 @@ int main(int argc, char* argv[]) {
 
          // onwer of incoming block
          int recv_owner = (my_rank + comm_sz - stage -1) % comm_sz;
+
+         // (idea from the textbook) we'll first test the first ring exchange
+         if (stage == 0) {
+            MPI_Sendrecv(
+               pos + send_owner * loc_n, loc_n, vect_mpi_t,
+               next_rank, 0,
+               pos + recv_owner * loc_n, loc_n, vect_mpi_t,
+               prev_rank, 0,
+               comm, MPI_STATUS_IGNORE
+            );
+         }
       }
 
       MPI_Allgather(MPI_IN_PLACE, loc_n, vect_mpi_t,
