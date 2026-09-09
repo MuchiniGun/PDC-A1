@@ -158,6 +158,16 @@ int main(int argc, char* argv[]) {
       for (loc_part = 0; loc_part < loc_n; loc_part++)
          Update_part(loc_part, masses, loc_forces, loc_pos, loc_vel,
                n, loc_n, delta_t);
+
+      // identifying owner's block traveling at each stage
+      for (int stage = 0; stage < comm_sz - 1; stage++) {
+         // owner of the sending blcok
+         int send_owner = (my_rank + comm_sz - stage) % comm_sz;
+
+         // onwer of incoming block
+         int recv_owner = (my_rank + comm_sz - stage -1) % comm_sz;
+      }
+
       MPI_Allgather(MPI_IN_PLACE, loc_n, vect_mpi_t,
                     pos, loc_n, vect_mpi_t, comm);
 #     ifndef NO_OUTPUT
