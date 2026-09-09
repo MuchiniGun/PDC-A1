@@ -122,6 +122,15 @@ int main(int argc, char* argv[]) {
    MPI_Comm_size(comm, &comm_sz);
    MPI_Comm_rank(comm, &my_rank);
 
+   // logic to define the ring topology
+   // basically defining each process's neighour
+
+   // need the rank to send
+   int next_rank = (my_rank + 1) % comm_sz;
+
+   // rank to receive from
+   int prev_rank = (my_rank + comm_sz - 1) % comm_sz;
+
    Get_args(argc, argv, &n, &n_steps, &delta_t, &output_freq, &g_i);
    loc_n = n/comm_sz;  /* n should be evenly divisible by comm_sz */
    masses = malloc(n*sizeof(double));
