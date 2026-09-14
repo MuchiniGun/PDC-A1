@@ -277,6 +277,41 @@ int main(int argc, char* argv[]) {
                   MPI_Abort(comm, 1);
             }
          }
+
+         for (int i = 0; i < loc_n; i++) {
+            for (int k = 0; k < loc_n; k++) {
+               // Get the source position from the packed buffer
+               double dx = owned_pos[i][X] - travel[loc_n + 2*k];
+               double dy = owned_pos[i][Y] - travel[loc_n + 2*k + 1];
+
+               double len = sqrt(dx*dx + dy*dy);
+               double len_3 = len*len*len;
+
+               double mg = -G * loc_masses[i] * travel[k]; // tiems with body mass
+               double factor = mg / len_3;
+
+               ring_forces[i][X] += dx * factor;
+               ring_forces[i][Y] += dy * factor;
+            }
+         }
+      }
+
+      // Comparing full ring forces with the original calculation
+      for (int i = 0; i < loc_n; i++) {
+         double error = hypot(
+               ring_forces[i][X] - loc_forces[i][X],
+               ring_forces[i][Y] - loc_forces[i][Y]);
+         double scale = hypot(loc_forces[i][X], loc_forces[i][Y]);
+
+         // a tolerance to test
+         double limit = 1e-12 * fmax(1.0, scale);
+
+         if (!isfinite(error) || !isfinite(scale) || error > limit) {
+            fprintf(stderr,
+                  "Rank %d body %d step %d: force error=%e limit=%e\n",
+                  my_rank, i, step, error, limit);
+            MPI_Abort(comm, 1);
+         }
       }
 
       for (loc_part = 0; loc_part < loc_n; loc_part++)
