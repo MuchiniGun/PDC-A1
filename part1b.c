@@ -88,15 +88,13 @@ void Usage(char* prog_name);
 void Get_args(int argc, char* argv[], int* n_p, int* n_steps_p,
       double* delta_t_p, int* output_freq_p, char* g_i_p);
 void Get_init_cond(double masses[], vect_t pos[],
+      double loc_masses[], vect_t owned_pos[],
       vect_t loc_vel[], int n, int loc_n);
 void Gen_init_cond(double masses[], vect_t pos[],
+      double loc_masses[], vect_t owned_pos[],
       vect_t loc_vel[], int n, int loc_n);
-void Output_state(double time, double masses[], vect_t pos[],
-      vect_t loc_vel[], int n, int loc_n);
-void Compute_force(int loc_part, double masses[], vect_t loc_forces[],
-      vect_t pos[], int n, int loc_n);
-void Update_part(int loc_part, double masses[], vect_t loc_forces[],
-      vect_t loc_pos[], vect_t loc_vel[], int n, int loc_n, double delta_t);
+void Output_state(double time, vect_t pos[],
+      vect_t owned_pos[], vect_t loc_vel[], int n, int loc_n);
 
 // calc force on local body i exerted by the other owned bodies
 void Compute_local_force(int i, double masses[], vect_t pos[],
@@ -136,11 +134,9 @@ int main(int argc, char* argv[]) {
    int output_freq;            /* Frequency of output        */
    double delta_t;             /* Size of timestep           */
    double t;                   /* Current Time               */
-   double* masses;             /* All the masses             */
-   vect_t* loc_pos;            /* Positions of my particles  */
-   vect_t* pos;                /* Positions of all particles */
+   double* masses = NULL;     /* Root-only initialisation scratch. */
+   vect_t* pos = NULL;         /* Root-only initialisation/output scratch. */
    vect_t* loc_vel;            /* Velocities of my particles */
-   vect_t* loc_forces;         /* Forces on my particles     */
    vect_t* ring_forces;        /* Totals for ring forces     */
    double* loc_masses;         /* Masses owned by this rank  */
    vect_t* owned_pos;          /* Storage for owned pos      */
@@ -165,44 +161,41 @@ int main(int argc, char* argv[]) {
 
    Get_args(argc, argv, &n, &n_steps, &delta_t, &output_freq, &g_i);
    loc_n = n/comm_sz;  /* n should be evenly divisible by comm_sz */
-   masses = malloc(n*sizeof(double));
-   pos = malloc(n*sizeof(vect_t));
-   loc_forces = malloc(loc_n*sizeof(vect_t));
+   if (my_rank == 0) {
+      masses = malloc(n * sizeof(double));
+      pos = malloc(n * sizeof(vect_t));
+      if (masses == NULL || pos == NULL)
+         MPI_Abort(comm, 1);
+   }
    ring_forces = malloc(loc_n * sizeof(vect_t));
    if (ring_forces == NULL) {
       MPI_Abort(comm, 1);
    }
-   loc_pos = pos + my_rank*loc_n;
    loc_vel = malloc(loc_n*sizeof(vect_t));
 
    loc_masses = malloc(loc_n * sizeof(double));
    owned_pos = malloc(loc_n * sizeof(vect_t));
 
-   if (loc_masses == NULL || owned_pos == NULL) {
+   if (loc_masses == NULL || owned_pos == NULL || loc_vel == NULL) {
       MPI_Abort(comm, 1);
    }
 
-   if (my_rank == 0) vel = malloc(n*sizeof(vect_t));
+   if (my_rank == 0) {
+      vel = malloc(n * sizeof(vect_t));
+      if (vel == NULL)
+         MPI_Abort(comm, 1);
+   }
    MPI_Type_contiguous(DIM, MPI_DOUBLE, &vect_mpi_t);
    MPI_Type_commit(&vect_mpi_t);
 
    if (g_i == 'i')
-      Get_init_cond(masses, pos, loc_vel, n, loc_n);
+      Get_init_cond(masses, pos, loc_masses, owned_pos, loc_vel, n, loc_n);
    else
-      Gen_init_cond(masses, pos, loc_vel, n, loc_n);
+      Gen_init_cond(masses, pos, loc_masses, owned_pos, loc_vel, n, loc_n);
 
-   // make a copy of the ranks init state from global array
-   memcpy(loc_masses, masses + my_rank * loc_n,
-         loc_n * sizeof(double));
-   memcpy(owned_pos, loc_pos, loc_n * sizeof(vect_t));
-
-   // confirms that copied arrays are actually working
-   if (memcmp(loc_masses, masses + my_rank * loc_n, loc_n
-       * sizeof(double)) != 0 || memcmp(owned_pos, loc_pos,
-          loc_n * sizeof(vect_t)) != 0) {
-            fprintf(stderr, "Mismatch for local array coppy at Rank %d", my_rank);
-            MPI_Abort(comm, 1);
-          }
+   /* Masses are now owned locally; discard root initialisation scratch. */
+   free(masses);
+   masses = NULL;
 
    travel = malloc(3 * loc_n * sizeof(double));
    if (travel == NULL) {
@@ -219,29 +212,15 @@ int main(int argc, char* argv[]) {
    start = MPI_Wtime();
 
 #  ifndef NO_OUTPUT
-   Output_state(0.0, masses, pos, loc_vel, n, loc_n);
+   Output_state(0.0, pos, owned_pos, loc_vel, n, loc_n);
 #  endif
    for (step = 1; step <= n_steps; step++) {
       t = step*delta_t;
-      for (loc_part = 0; loc_part < loc_n; loc_part++)
-         Compute_force(loc_part, masses, loc_forces, pos, n, loc_n);
 
-      // make a local copy before doing calculations on test forces
-      memcpy(owned_pos, loc_pos, loc_n * sizeof(vect_t));
-
+      // Start each owned body's force sum with local contributions
       for (loc_part = 0; loc_part < loc_n; loc_part++) {
-         double* test_force = ring_forces[loc_part];
-
          Compute_local_force(loc_part, loc_masses, owned_pos,
-            loc_n, test_force);
-
-         if (comm_sz == 1 &&
-             memcmp(test_force, loc_forces[loc_part], sizeof(vect_t))
-             != 0 ) {
-               fprintf(stderr, "local force mismatch: body %d, step %d\n",
-                        loc_part, step);
-               MPI_Abort(comm, 1);
-             }
+               loc_n, ring_forces[loc_part]);
       }
 
       // will be packing the rank's bodies into one message
@@ -261,23 +240,6 @@ int main(int argc, char* argv[]) {
             comm, MPI_STATUS_IGNORE
          );
 
-         int owner = (my_rank + comm_sz - stage - 1) % comm_sz;
-
-         for (int i = 0; i < loc_n; i++) {
-            // sync the local buffer to global body index
-            int body = owner * loc_n + i;
-
-            if (travel[i] != masses[body] ||
-                travel[loc_n + 2*i] != pos[body][X] ||
-                travel[loc_n + 2*i + 1] != pos[body][Y]) {
-                  fprintf(stderr,
-                  "Blocks out of sync. Rnak %d, stage %d, owner %d\n",
-                  my_rank, stage, owner
-                  );
-                  MPI_Abort(comm, 1);
-            }
-         }
-
          for (int i = 0; i < loc_n; i++) {
             for (int k = 0; k < loc_n; k++) {
                // Get the source position from the packed buffer
@@ -296,24 +258,6 @@ int main(int argc, char* argv[]) {
          }
       }
 
-      // Comparing full ring forces with the original calculation
-      for (int i = 0; i < loc_n; i++) {
-         double error = hypot(
-               ring_forces[i][X] - loc_forces[i][X],
-               ring_forces[i][Y] - loc_forces[i][Y]);
-         double scale = hypot(loc_forces[i][X], loc_forces[i][Y]);
-
-         // a tolerance to test
-         double limit = 1e-12 * fmax(1.0, scale);
-
-         if (!isfinite(error) || !isfinite(scale) || error > limit) {
-            fprintf(stderr,
-                  "Rank %d body %d step %d: force error=%e limit=%e\n",
-                  my_rank, i, step, error, limit);
-            MPI_Abort(comm, 1);
-         }
-      }
-
       // updates owned bodies using the completed ring forces
       for (int i = 0; i < loc_n; i++) {
          double factor = delta_t / loc_masses[i];
@@ -327,29 +271,9 @@ int main(int argc, char* argv[]) {
          loc_vel[i][Y] += factor * ring_forces[i][Y];
       }
 
-      memcpy(loc_pos, owned_pos, loc_n * sizeof(vect_t));
-
-      // identifying owner's block traveling at each stage
-      for (int stage = 0; stage < comm_sz - 1; stage++) {
-         // owner of the sending blcok
-         int send_owner = (my_rank + comm_sz - stage) % comm_sz;
-
-         // onwer of incoming block
-         int recv_owner = (my_rank + comm_sz - stage -1) % comm_sz;
-
-         // (idea from the textbook)
-         MPI_Sendrecv(
-            pos + send_owner * loc_n, loc_n, vect_mpi_t,
-            next_rank, 0,
-            pos + recv_owner * loc_n, loc_n, vect_mpi_t,
-            prev_rank, 0,
-            comm, MPI_STATUS_IGNORE
-         );
-      }
-
 #     ifndef NO_OUTPUT
       if (step % output_freq == 0)
-         Output_state(t, masses, pos, loc_vel, n, loc_n);
+         Output_state(t, pos, owned_pos, loc_vel, n, loc_n);
 #     endif
    }
 
@@ -358,9 +282,7 @@ int main(int argc, char* argv[]) {
       printf("Elapsed time = %e seconds\n", finish-start);
 
    MPI_Type_free(&vect_mpi_t);
-   free(masses);
    free(pos);
-   free(loc_forces);
    free(ring_forces);
    free(loc_vel);
    // freeing up masses and position mem
@@ -465,7 +387,8 @@ void Get_args(int argc, char* argv[], int* n_p, int* n_steps_p,
  *    vel:     Scratch.  Used by process 0 for global velocities
  */
 void Get_init_cond(double masses[], vect_t pos[],
-     vect_t loc_vel[], int n, int loc_n) {
+      double loc_masses[], vect_t owned_pos[],
+      vect_t loc_vel[], int n, int loc_n) {
    int part;
 
    if (my_rank == 0) {
@@ -480,8 +403,11 @@ void Get_init_cond(double masses[], vect_t pos[],
          scanf("%lf", &vel[part][Y]);
       }
    }
-   MPI_Bcast(masses, n, MPI_DOUBLE, 0, comm);
-   MPI_Bcast(pos, n, vect_mpi_t, 0, comm);
+   /* Distribute one owned block to each rank, including rank 0. */
+   MPI_Scatter(masses, loc_n, MPI_DOUBLE,
+         loc_masses, loc_n, MPI_DOUBLE, 0, comm);
+   MPI_Scatter(pos, loc_n, vect_mpi_t,
+         owned_pos, loc_n, vect_mpi_t, 0, comm);
    MPI_Scatter(vel, loc_n, vect_mpi_t,
          loc_vel, loc_n, vect_mpi_t, 0, comm);
 }  /* Get_init_cond */
@@ -508,6 +434,7 @@ void Get_init_cond(double masses[], vect_t pos[],
  *            some are negative.
  */
 void Gen_init_cond(double masses[], vect_t pos[],
+      double loc_masses[], vect_t owned_pos[],
       vect_t loc_vel[], int n, int loc_n) {
    int part;
    double mass = 5.0e24;
@@ -529,8 +456,11 @@ void Gen_init_cond(double masses[], vect_t pos[],
       }
    }
 
-   MPI_Bcast(masses, n, MPI_DOUBLE, 0, comm);
-   MPI_Bcast(pos, n, vect_mpi_t, 0, comm);
+   /* Distribute one owned block to each rank, including rank 0. */
+   MPI_Scatter(masses, loc_n, MPI_DOUBLE,
+         loc_masses, loc_n, MPI_DOUBLE, 0, comm);
+   MPI_Scatter(pos, loc_n, vect_mpi_t,
+         owned_pos, loc_n, vect_mpi_t, 0, comm);
    MPI_Scatter(vel, loc_n, vect_mpi_t,
          loc_vel, loc_n, vect_mpi_t, 0, comm);
 }  /* Gen_init_cond */
@@ -541,22 +471,25 @@ void Gen_init_cond(double masses[], vect_t pos[],
  * Purpose:    Print the current state of the system
  * In args:
  *    time:    current time
- *    masses:  global array of particle masses
- *    pos:     global array of particle positions
+ *    pos:     changed to root-only output scratch
+ *    owned_pos: local owned positions to gather
  *    loc_vel: local array of my particle velocities
  *    n:       total number of particles
  *    loc_n:   number of my particles
  */
-void Output_state(double time, double masses[], vect_t pos[],
-      vect_t loc_vel[], int n, int loc_n) {
+void Output_state(double time, vect_t pos[],
+      vect_t owned_pos[], vect_t loc_vel[], int n, int loc_n) {
    int part;
+
+   // Collect owned positions on rank 0 in global body order
+   MPI_Gather(owned_pos, loc_n, vect_mpi_t,
+         pos, loc_n, vect_mpi_t, 0, comm);
 
    MPI_Gather(loc_vel, loc_n, vect_mpi_t, vel, loc_n, vect_mpi_t,
          0, comm);
    if (my_rank == 0) {
       printf("%.2f\n", time);
       for (part = 0; part < n; part++) {
-//       printf("%.3f ", masses[part]);
          printf("%3d %10.3e ", part, pos[part][X]);
          printf("  %10.3e ", pos[part][Y]);
          printf("  %10.3e ", vel[part][X]);
@@ -565,112 +498,3 @@ void Output_state(double time, double masses[], vect_t pos[],
       printf("\n");
    }
 }  /* Output_state */
-
-
-/*---------------------------------------------------------------------
- * Function:       Compute_force
- * Purpose:        Compute the total force on particle loc_part.  Don't
- *                 exploit the symmetry (force on particle i due to
- *                 particle k) = -(force on particle k due to particle i)
- * In args:
- *    loc_part:    the particle (local index) on which we're computing
- *                 the total force
- *    masses:      global array of particle masses
- *    pos:         global array of particle positions
- *    n:           total number of particles
- *    loc_n:       number of my particles
- * Out arg:
- *    loc_forces:  array of total forces acting on my particles
- *
- * Note: This function uses the force due to gravitation.  So
- * the force on particle i due to particle k is given by
- *
- *    m_i m_k (s_k - s_i)/|s_k - s_i|^2
- *
- * Here, m_k is the mass of particle k and s_k is its position vector
- * (at time t).
- */
-void Compute_force(int loc_part, double masses[], vect_t loc_forces[],
-      vect_t pos[], int n, int loc_n) {
-   int k, part;
-   double mg;
-   vect_t f_part_k;
-   double len, len_3, fact;
-
-   /* Global index corresponding to loc_part */
-   part = my_rank*loc_n + loc_part;
-   loc_forces[loc_part][X] = loc_forces[loc_part][Y] = 0.0;
-#  ifdef DEBUG
-   printf("Proc %d > Current total force on part %d = (%.3e, %.3e)\n",
-         my_rank, part, loc_forces[loc_part][X],
-         loc_forces[loc_part][Y]);
-#  endif
-   for (k = 0; k < n; k++) {
-      if (k != part) {
-         /* Compute force on part due to k */
-         f_part_k[X] = pos[part][X] - pos[k][X];
-         f_part_k[Y] = pos[part][Y] - pos[k][Y];
-         len = sqrt(f_part_k[X]*f_part_k[X] + f_part_k[Y]*f_part_k[Y]);
-         len_3 = len*len*len;
-         mg = -G*masses[part]*masses[k];
-         fact = mg/len_3;
-         f_part_k[X] *= fact;
-         f_part_k[Y] *= fact;
-#        ifdef DEBUG
-         printf("Proc %d > Force on part %d due to part %d = (%.3e, %.3e)\n",
-               my_rank, part, k, f_part_k[X], f_part_k[Y]);
-#        endif
-
-         /* Add force in to total forces */
-         loc_forces[loc_part][X] += f_part_k[X];
-         loc_forces[loc_part][Y] += f_part_k[Y];
-      }
-   }
-}  /* Compute_force */
-
-
-/*---------------------------------------------------------------------
- * Function:  Update_part
- * Purpose:   Update the velocity and position for particle loc_part
- * In args:
- *    loc_part:    local index of the particle we're updating
- *    masses:      global array of particle masses
- *    loc_forces:  local array of total forces
- *    n:           total number of particles
- *    loc_n:       number of particles assigned to this process
- *    delta_t:     step size
- *
- * In/out args:
- *    loc_pos:     local array of positions
- *    loc_vel:     local array of velocities
- *
- * Note:  This version uses Euler's method to update both the velocity
- *    and the position.
- */
-void Update_part(int loc_part, double masses[], vect_t loc_forces[],
-      vect_t loc_pos[], vect_t loc_vel[], int n, int loc_n,
-      double delta_t) {
-   int part;
-   double fact;
-
-   part = my_rank*loc_n + loc_part;
-   fact = delta_t/masses[part];
-#  ifdef DEBUG
-   printf("Proc %d > Before update of %d:\n", my_rank, part);
-   printf("   Position  = (%.3e, %.3e)\n",
-         loc_pos[loc_part][X], loc_pos[loc_part][Y]);
-   printf("   Velocity  = (%.3e, %.3e)\n",
-         loc_vel[loc_part][X], loc_vel[loc_part][Y]);
-   printf("   Net force = (%.3e, %.3e)\n",
-         loc_forces[loc_part][X], loc_forces[loc_part][Y]);
-#  endif
-   loc_pos[loc_part][X] += delta_t * loc_vel[loc_part][X];
-   loc_pos[loc_part][Y] += delta_t * loc_vel[loc_part][Y];
-   loc_vel[loc_part][X] += fact * loc_forces[loc_part][X];
-   loc_vel[loc_part][Y] += fact * loc_forces[loc_part][Y];
-#  ifdef DEBUG
-   printf("Proc %d > Position of %d = (%.3e, %.3e), Velocity = (%.3e,%.3e)\n",
-         my_rank, part, loc_pos[loc_part][X], loc_pos[loc_part][Y],
-               loc_vel[loc_part][X], loc_vel[loc_part][Y]);
-#  endif
-}  /* Update_part */
