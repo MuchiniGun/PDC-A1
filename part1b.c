@@ -239,6 +239,41 @@ int main(int argc, char* argv[]) {
              }
       }
 
+      // will be packing the rank's bodies into one message
+      // reload our own current block before every ring pass
+      for (int i = 0; i < loc_n; i++) {
+         travel[i] = loc_masses[i];
+         travel[loc_n + 2*i] = owned_pos[i][X];
+         travel[loc_n + 2*i + 1] = owned_pos[i][Y];
+      }
+
+      // exchanging the messages for each rank
+      for (int stage = 0; stage < comm_sz - 1; stage++) {
+         MPI_Sendrecv_replace(
+            travel, 3 * loc_n, MPI_DOUBLE,
+            next_rank, 1,
+            prev_rank, 1,
+            comm, MPI_STATUS_IGNORE
+         );
+
+         int owner = (my_rank + comm_sz - stage - 1) % comm_sz;
+
+         for (int i = 0; i < loc_n; i++) {
+            // sync the local buffer to global body index
+            int body = owner * loc_n + i;
+
+            if (travel[i] != masses[body] ||
+                travel[loc_n + 2*i] != pos[body][X] ||
+                travel[loc_n + 2*i + 1] != pos[body][Y]) {
+                  fprintf(stderr,
+                  "Blocks out of sync. Rnak %d, stage %d, owner %d\n",
+                  my_rank, stage, owner
+                  );
+                  MPI_Abort(comm, 1);
+            }
+         }
+      }
+
       for (loc_part = 0; loc_part < loc_n; loc_part++)
          Update_part(loc_part, masses, loc_forces, loc_pos, loc_vel,
                n, loc_n, delta_t);
