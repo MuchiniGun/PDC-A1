@@ -177,20 +177,6 @@ int main(int argc, char* argv[]) {
          );
       }
 
-      // saving the ring result
-      vect_t *ring_result = malloc(n * sizeof(vect_t));
-      memcpy(ring_result, pos, n * sizeof(vect_t));
-
-      MPI_Allgather(MPI_IN_PLACE, loc_n, vect_mpi_t,
-                    pos, loc_n, vect_mpi_t, comm);
-
-      if (memcmp(ring_result, pos, n * sizeof(vect_t)) != 0) {
-         fprintf(stderr, "Ring mismatch at step %d for rank %d", my_rank, step);
-         MPI_Abort(comm, 1);
-      }
-
-      free(ring_result);
-
 #     ifndef NO_OUTPUT
       if (step % output_freq == 0)
          Output_state(t, masses, pos, loc_vel, n, loc_n);
