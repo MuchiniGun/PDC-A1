@@ -314,9 +314,20 @@ int main(int argc, char* argv[]) {
          }
       }
 
-      for (loc_part = 0; loc_part < loc_n; loc_part++)
-         Update_part(loc_part, masses, loc_forces, loc_pos, loc_vel,
-               n, loc_n, delta_t);
+      // updates owned bodies using the completed ring forces
+      for (int i = 0; i < loc_n; i++) {
+         double factor = delta_t / loc_masses[i];
+
+         // Euler position update using the old velocity
+         owned_pos[i][X] += delta_t * loc_vel[i][X];
+         owned_pos[i][Y] += delta_t * loc_vel[i][Y];
+
+         // Update velocity using acceleration = force / mass
+         loc_vel[i][X] += factor * ring_forces[i][X];
+         loc_vel[i][Y] += factor * ring_forces[i][Y];
+      }
+
+      memcpy(loc_pos, owned_pos, loc_n * sizeof(vect_t));
 
       // identifying owner's block traveling at each stage
       for (int stage = 0; stage < comm_sz - 1; stage++) {
