@@ -162,6 +162,15 @@ int main(int argc, char* argv[]) {
          loc_n * sizeof(double));
    memcpy(owned_pos, loc_pos, loc_n * sizeof(vect_t));
 
+   // confirms that copied arrays are actually working
+   if (memcmp(loc_masses, masses + my_rank * loc_n, loc_n
+       * sizeof(double)) != 0 || memcmp(owned_pos, loc_pos,
+          loc_n * sizeof(vect_t)) != 0) {
+            fprintf(stderr, "Mismatch for local array coppy at Rank %d", my_rank);
+            MPI_Abort(comm, 1);
+          }
+
+
    start = MPI_Wtime();
 #  ifndef NO_OUTPUT
    Output_state(0.0, masses, pos, loc_vel, n, loc_n);
