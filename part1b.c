@@ -220,6 +220,25 @@ int main(int argc, char* argv[]) {
       t = step*delta_t;
       for (loc_part = 0; loc_part < loc_n; loc_part++)
          Compute_force(loc_part, masses, loc_forces, pos, n, loc_n);
+
+      // make a local copy before doing calculations on test forces
+      memcpy(owned_pos, loc_pos, loc_n * sizeof(vect_t));
+
+      for (loc_part = 0; loc_part < loc_n; loc_part++) {
+         vect_t test_force; // used to save the test result and run against sim forces
+
+         Compute_local_force(loc_part, loc_masses, owned_pos,
+            loc_n, test_force);
+
+         if (comm_sz == 1 &&
+             memcmp(test_force, loc_forces[loc_part], sizeof(vect_t))
+             != 0 ) {
+               fprintf(stderr, "local force mismatch: body %d, step %d\n",
+                        loc_part, step);
+               MPI_Abort(comm, 1);
+             }
+      }
+
       for (loc_part = 0; loc_part < loc_n; loc_part++)
          Update_part(loc_part, masses, loc_forces, loc_pos, loc_vel,
                n, loc_n, delta_t);
