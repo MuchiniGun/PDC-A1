@@ -98,6 +98,34 @@ void Compute_force(int loc_part, double masses[], vect_t loc_forces[],
 void Update_part(int loc_part, double masses[], vect_t loc_forces[],
       vect_t loc_pos[], vect_t loc_vel[], int n, int loc_n, double delta_t);
 
+// calc force on local body i exerted by the other owned bodies
+void Compute_local_force(int i, double masses[], vect_t pos[],
+      int loc_n, vect_t force) {
+
+   force[X] = force[Y] = 0.0;
+
+   for (int k = 0; k < loc_n; k++) {
+      // if it's the same body skip because that can't happen
+      if (k == i)
+         continue;
+
+      // displacements
+      double dx = pos[i][X] - pos[k][X];
+      double dy = pos[i][Y] - pos[k][Y];
+
+      // distance cubed gives
+      double len = sqrt(dx*dx + dy*dy);
+      double len_3 = len*len*len;
+
+      double mg = -G*masses[i]*masses[k]; // -G to direct graviy to source
+      double factor = mg / len_3;
+
+      // add body's contribution to the total force
+      force[X] += dx * factor;
+      force[Y] += dy * factor;
+   }
+}
+
 /*--------------------------------------------------------------------*/
 int main(int argc, char* argv[]) {
    int n;                      /* Total number of particles  */
@@ -115,6 +143,7 @@ int main(int argc, char* argv[]) {
    vect_t* loc_forces;         /* Forces on my particles     */
    double* loc_masses;         /* Masses owned by this rank  */
    vect_t* owned_pos;          /* Storage for owned pos      */
+   double* travel;             /* Packed */
 
    char g_i;                   /*_G_en or _i_nput init conds */
    double start, finish;       /* For timings                */
@@ -170,8 +199,20 @@ int main(int argc, char* argv[]) {
             MPI_Abort(comm, 1);
           }
 
+   travel = malloc(3 * loc_n * sizeof(double));
+   if (travel == NULL) {
+      MPI_Abort(comm, 1);
+   }
+
+   // pack the fields and their positions
+   for (int i = 0; i < loc_n; i++) {
+      travel[i] = loc_masses[i];
+      travel[loc_n + 2*i] = owned_pos[i][X];
+      travel[loc_n + 2*i + 1] = owned_pos[i][Y];
+   }
 
    start = MPI_Wtime();
+
 #  ifndef NO_OUTPUT
    Output_state(0.0, masses, pos, loc_vel, n, loc_n);
 #  endif
@@ -219,6 +260,8 @@ int main(int argc, char* argv[]) {
    // freeing up masses and position mem
    free(loc_masses);
    free(owned_pos);
+   free(travel);
+
    if (my_rank == 0) free(vel);
 
    MPI_Finalize();
