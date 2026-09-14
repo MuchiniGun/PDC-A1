@@ -141,6 +141,7 @@ int main(int argc, char* argv[]) {
    vect_t* pos;                /* Positions of all particles */
    vect_t* loc_vel;            /* Velocities of my particles */
    vect_t* loc_forces;         /* Forces on my particles     */
+   vect_t* ring_forces;        /* Totals for ring forces     */
    double* loc_masses;         /* Masses owned by this rank  */
    vect_t* owned_pos;          /* Storage for owned pos      */
    double* travel;             /* Packed */
@@ -167,6 +168,10 @@ int main(int argc, char* argv[]) {
    masses = malloc(n*sizeof(double));
    pos = malloc(n*sizeof(vect_t));
    loc_forces = malloc(loc_n*sizeof(vect_t));
+   ring_forces = malloc(loc_n * sizeof(vect_t));
+   if (ring_forces == NULL) {
+      MPI_Abort(comm, 1);
+   }
    loc_pos = pos + my_rank*loc_n;
    loc_vel = malloc(loc_n*sizeof(vect_t));
 
@@ -225,7 +230,7 @@ int main(int argc, char* argv[]) {
       memcpy(owned_pos, loc_pos, loc_n * sizeof(vect_t));
 
       for (loc_part = 0; loc_part < loc_n; loc_part++) {
-         vect_t test_force; // used to save the test result and run against sim forces
+         double* test_force = ring_forces[loc_part];
 
          Compute_local_force(loc_part, loc_masses, owned_pos,
             loc_n, test_force);
@@ -310,6 +315,7 @@ int main(int argc, char* argv[]) {
    free(masses);
    free(pos);
    free(loc_forces);
+   free(ring_forces);
    free(loc_vel);
    // freeing up masses and position mem
    free(loc_masses);
