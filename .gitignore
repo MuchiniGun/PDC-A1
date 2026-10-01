@@ -1,0 +1,8 @@
+/build/
+
+.DS_Store
+
+# local repo setting files
+.c_cpp_properties.json
+.launch.json
+.settings.json
