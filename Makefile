@@ -8,18 +8,28 @@ ORIGINAL_BINS := $(BUILD_DIR)/reference-original \
 	$(BUILD_DIR)/shared-original \
 	$(BUILD_DIR)/basic-original \
 	$(BUILD_DIR)/reduced-original
+REFERENCE_BINS := $(BUILD_DIR)/reference-observation \
+	$(BUILD_DIR)/reference-precise
 
-.PHONY: all originals smoke clean
+.PHONY: all originals reference smoke clean
 
 all: originals
 
 originals: $(ORIGINAL_BINS)
+
+reference: $(REFERENCE_BINS)
 
 $(BUILD_DIR):
 	mkdir -p $@
 
 $(BUILD_DIR)/reference-original: nbody_red.c timer.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) nbody_red.c $(LDLIBS) -o $@
+
+$(BUILD_DIR)/reference-observation: reference_nbody_red.c timer.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) reference_nbody_red.c $(LDLIBS) -o $@
+
+$(BUILD_DIR)/reference-precise: reference_nbody_red.c timer.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -DPRECISE_OUTPUT reference_nbody_red.c $(LDLIBS) -o $@
 
 $(BUILD_DIR)/shared-original: nbody_shared_forces.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(OMPFLAGS) nbody_shared_forces.c $(LDLIBS) -o $@
