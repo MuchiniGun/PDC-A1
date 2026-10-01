@@ -1,0 +1,51 @@
+CC ?= gcc
+CFLAGS ?= -O2 -g -Wall -Wextra
+OMPFLAGS ?= -fopenmp
+LDLIBS ?= -lm
+
+BUILD_DIR := build
+ORIGINAL_BINS := $(BUILD_DIR)/reference-original \
+	$(BUILD_DIR)/shared-original \
+	$(BUILD_DIR)/basic-original \
+	$(BUILD_DIR)/reduced-original
+
+.PHONY: all originals smoke clean
+
+all: originals
+
+originals: $(ORIGINAL_BINS)
+
+$(BUILD_DIR):
+	mkdir -p $@
+
+$(BUILD_DIR)/reference-original: nbody_red.c timer.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) nbody_red.c $(LDLIBS) -o $@
+
+$(BUILD_DIR)/shared-original: nbody_shared_forces.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) nbody_shared_forces.c $(LDLIBS) -o $@
+
+$(BUILD_DIR)/basic-original: omp_nbody_basic.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) omp_nbody_basic.c $(LDLIBS) -o $@
+
+$(BUILD_DIR)/reduced-original: omp_nbody_red.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) omp_nbody_red.c $(LDLIBS) -o $@
+
+$(BUILD_DIR)/omp-smoke.c: | $(BUILD_DIR)
+	printf '%s\n' '#include <omp.h>' '#include <stdio.h>' '' \
+		'int main(void) {' \
+		'    #pragma omp parallel num_threads(2)' \
+		'    {' \
+		'        #pragma omp single' \
+		'        printf("observed_team=%d _OPENMP=%d\\n", omp_get_num_threads(), _OPENMP);' \
+		'    }' \
+		'    return 0;' \
+		'}' > $@
+
+$(BUILD_DIR)/omp-smoke: $(BUILD_DIR)/omp-smoke.c
+	$(CC) $(CFLAGS) $(OMPFLAGS) $< -o $@
+
+smoke: $(BUILD_DIR)/omp-smoke
+	./$(BUILD_DIR)/omp-smoke
+
+clean:
+	rm -rf $(BUILD_DIR)
