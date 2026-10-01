@@ -5,7 +5,7 @@ mkdir -p build/validation
 for n in 1 2 4 7 17; do
     timeout 30s ./build/shared-precise 1 "$n" 10 0.01 1 g > build/validation/expected.csv
     timeout 30s ./build/critical-validate 1 "$n" 10 0.01 1 g > build/validation/critical.csv
-    echo "Sequential critical baseline: n=$n"
+    echo "Critical reference comparison: n=$n"
     python3 tools/compare.py build/validation/expected.csv build/validation/critical.csv
 done
 
@@ -36,4 +36,4 @@ reject 1 4 2 nan 1 g
 reject 1 4oops 2 0.01 1 g
 reject 1 4 2 0.01 1 i < /dev/null
 echo "Input rejection and output-mode checks passed"
-echo "Critical baseline checks passed (still sequential)"
+echo "Critical reference and input checks passed"

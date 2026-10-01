@@ -19,6 +19,5 @@ echo "Non-collinear case: n=4, steps=3"
 python3 tools/compare.py build/validation/reduced.csv build/validation/shared.csv
 
 timeout 30s ./build/reference-precise 4 2 0.01 1 g > build/validation/current.csv
-echo "Milestone 03 fixture regression"
 python3 tools/compare.py tests/expected/reference-n4-steps2.csv build/validation/current.csv
 echo "Reference checks passed"
