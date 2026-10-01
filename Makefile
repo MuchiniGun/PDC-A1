@@ -11,13 +11,25 @@ ORIGINAL_BINS := $(BUILD_DIR)/reference-original \
 REFERENCE_BINS := $(BUILD_DIR)/reference-observation \
 	$(BUILD_DIR)/reference-precise $(BUILD_DIR)/shared-precise
 
-.PHONY: all originals reference smoke test-comparator check-validation clean
+.PHONY: all originals reference smoke test-comparator check-validation check-critical-baseline clean
 
 all: originals
 
 originals: $(ORIGINAL_BINS)
 
 reference: $(REFERENCE_BINS)
+
+$(BUILD_DIR)/critical: part2a_critical.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) $< $(LDLIBS) -o $@
+
+$(BUILD_DIR)/critical-validate: part2a_critical.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) -DVALIDATE $< $(LDLIBS) -o $@
+
+$(BUILD_DIR)/critical-no-output: part2a_critical.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) -DNO_OUTPUT $< $(LDLIBS) -o $@
+
+check-critical-baseline: reference $(BUILD_DIR)/critical $(BUILD_DIR)/critical-validate $(BUILD_DIR)/critical-no-output
+	bash tests/check_critical_baseline.sh
 
 $(BUILD_DIR):
 	mkdir -p $@
