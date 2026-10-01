@@ -129,12 +129,11 @@ int main(int argc, char* argv[]) {
          for (int part = 0; part < n; part++)
             forces[part][X] = forces[part][Y] = 0.0;
 
-         // One thread calculates the forces. Everyone waits until it finishes
-#        pragma omp single
-         {
-            for (int part = 0; part < n-1; part++)
-               Compute_force(part, forces, curr, n);
-         }
+         // Divide pair calculations between threads, then wait until all forces
+         // are complete before updating any particles.
+#        pragma omp for
+         for (int part = 0; part < n-1; part++)
+            Compute_force(part, forces, curr, n);
 
          // Each thread updates different particles
 #        pragma omp for
@@ -361,8 +360,9 @@ void Compute_force(int part, vect_t forces[], struct particle_s curr[],
    double len, len_3, fact;
 
 #  ifdef DEBUG
-   printf("Current total force on particle %d = (%.3e, %.3e)\n",
-         part, forces[part][X], forces[part][Y]);
+   // printf("Current total force on particle %d = (%.3e, %.3e)\n",
+   //       part, forces[part][X], forces[part][Y]);
+   printf("Computing pairs starting at particle %d\n", part);
 #  endif
    for (k = part+1; k < n; k++) {
       /* Compute force on part due to k. */
@@ -380,10 +380,15 @@ void Compute_force(int part, vect_t forces[], struct particle_s curr[],
 #     endif
 
       /* Accumulate equal and opposite contributions into shared forces. */
-      forces[part][X] += f_part_k[X];
-      forces[part][Y] += f_part_k[Y];
-      forces[k][X] -= f_part_k[X];
-      forces[k][Y] -= f_part_k[Y];
+      // Different pairs can update the same particle
+      // lets one thread add both contributions
+#     pragma omp critical(force_updates)
+      {
+         forces[part][X] += f_part_k[X];
+         forces[part][Y] += f_part_k[Y];
+         forces[k][X] -= f_part_k[X];
+         forces[k][Y] -= f_part_k[Y];
+      }
    }
 }  /* Compute_force */
 
