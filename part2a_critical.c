@@ -129,20 +129,27 @@ int main(int argc, char* argv[]) {
          for (int part = 0; part < n; part++)
             forces[part][X] = forces[part][Y] = 0.0;
 
-         // One thread calculates and updates the particles to avoid repeating work.
-         // The others wait until it finishes before starting the next timestep.
+         // One thread calculates the forces. Everyone waits until it finishes
 #        pragma omp single
          {
             for (int part = 0; part < n-1; part++)
                Compute_force(part, forces, curr, n);
-            for (int part = 0; part < n; part++)
-               Update_part(part, forces, curr, n, delta_t);
-#           ifndef NO_OUTPUT
+         }
+
+         // Each thread updates different particles
+#        pragma omp for
+         for (int part = 0; part < n; part++)
+            Update_part(part, forces, curr, n, delta_t);
+
+#        ifndef NO_OUTPUT
+         // Print once after all particle updates have finished
+#        pragma omp single
+         {
             double t = step*delta_t;
             if (step % output_freq == 0)
                Output_state(t, curr, n);
-#           endif
          }
+#        endif
       }
    }
 
