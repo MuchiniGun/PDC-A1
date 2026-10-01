@@ -5,7 +5,7 @@
  *           contributions are accumulated directly into one force array.
  *
  *           Derived from the supplied nbody_shared_forces.c with precise
- *           validation output. Parallel critical updates are added later.
+ *           validation output.
  *
  * Compile:  gcc -g -Wall -fopenmp -o part2a_critical \
  *              part2a_critical.c -lm
@@ -71,7 +71,6 @@ void Get_args(int argc, char* argv[], int* thread_count_p, int* n_p,
 void Get_init_cond(struct particle_s curr[], int n);
 void Gen_init_cond(struct particle_s curr[], int n);
 void Output_state(double time, struct particle_s curr[], int n);
-void Reset_forces(vect_t forces[], int n);
 void Compute_force(int part, vect_t forces[], struct particle_s curr[],
       int n);
 void Update_part(int part, vect_t forces[], struct particle_s curr[],
@@ -124,12 +123,16 @@ int main(int argc, char* argv[]) {
       actual_threads = omp_get_num_threads();
 
       for (int step = 1; step <= n_steps; step++) {
-         /* One thread performs the whole timestep for now. The implicit
-          * barrier makes everyone wait before advancing to the next step.
-          * A different thread may execute single on the next iteration. */
+         // Each thread resets different particles, so no lock is needed.
+         // All threads wait here until every force is zero before calculating forces.
+#        pragma omp for
+         for (int part = 0; part < n; part++)
+            forces[part][X] = forces[part][Y] = 0.0;
+
+         // One thread calculates and updates the particles to avoid repeating work.
+         // The others wait until it finishes before starting the next timestep.
 #        pragma omp single
          {
-            Reset_forces(forces, n);
             for (int part = 0; part < n-1; part++)
                Compute_force(part, forces, curr, n);
             for (int part = 0; part < n; part++)
@@ -147,6 +150,8 @@ int main(int argc, char* argv[]) {
 #  ifdef VALIDATE
    /* Keep diagnostics separate from the state records on stdout. */
    fprintf(stderr, "observed_team=%d\n", actual_threads);
+#  else
+   (void)actual_threads;  // Team size is only reported in validation builds.
 #  endif
    printf("Elapsed time = %e seconds\n", finish-start);
 
@@ -323,22 +328,6 @@ void Output_state(double time, struct particle_s curr[], int n) {
    printf("\n");
 #  endif
 }  /* Output_state */
-
-
-/*---------------------------------------------------------------------
- * Function:  Reset_forces
- * Purpose:   Reset the shared force array before a timestep
- * In arg:
- *    n:      number of particles
- * Out arg:
- *    forces: force[i] stores the total force on particle i
- */
-void Reset_forces(vect_t forces[], int n) {
-   int part;
-
-   for (part = 0; part < n; part++)
-      forces[part][X] = forces[part][Y] = 0.0;
-}  /* Reset_forces */
 
 
 /*---------------------------------------------------------------------
