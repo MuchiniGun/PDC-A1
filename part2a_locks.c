@@ -72,7 +72,7 @@ void Get_init_cond(struct particle_s curr[], int n);
 void Gen_init_cond(struct particle_s curr[], int n);
 void Output_state(double time, struct particle_s curr[], int n);
 void Compute_force(int part, vect_t forces[], struct particle_s curr[],
-      int n);
+      int n, omp_lock_t locks[]);
 void Update_part(int part, vect_t forces[], struct particle_s curr[],
       int n, double delta_t);
 
@@ -135,7 +135,7 @@ int main(int argc, char* argv[]) {
    /* Create the team once. Each thread has its own initialized step counter.
     * Array pointers and simulation parameters are explicitly shared. */
 #  pragma omp parallel num_threads(thread_count) default(none) \
-      shared(curr, forces, n, n_steps, delta_t, output_freq, actual_threads)
+      shared(curr, forces, n, n_steps, delta_t, output_freq, actual_threads, locks)
    {
 #     pragma omp single
       actual_threads = omp_get_num_threads();
@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
          // are complete before updating any particles.
 #        pragma omp for
          for (int part = 0; part < n-1; part++)
-            Compute_force(part, forces, curr, n);
+            Compute_force(part, forces, curr, n, locks);
 
          // Each thread updates different particles
 #        pragma omp for
@@ -375,7 +375,7 @@ void Output_state(double time, struct particle_s curr[], int n) {
  *    -G m_part m_k (s_part - s_k)/|s_part - s_k|^3
  */
 void Compute_force(int part, vect_t forces[], struct particle_s curr[],
-      int n) {
+      int n, omp_lock_t locks[]) {
    int k;
    double mg;
    vect_t f_part_k;
@@ -402,15 +402,17 @@ void Compute_force(int part, vect_t forces[], struct particle_s curr[],
 #     endif
 
       /* Accumulate equal and opposite contributions into shared forces. */
-      // Different pairs can update the same particle
-      // lets one thread add both contributions
-#     pragma omp critical(force_updates)
-      {
-         forces[part][X] += f_part_k[X];
-         forces[part][Y] += f_part_k[Y];
-         forces[k][X] -= f_part_k[X];
-         forces[k][Y] -= f_part_k[Y];
-      }
+      // Lock this particle while changing both components of its force.
+      omp_set_lock(&locks[part]);
+      forces[part][X] += f_part_k[X];
+      forces[part][Y] += f_part_k[Y];
+      omp_unset_lock(&locks[part]);
+
+      // Release the first lock before taking the second to avoid deadlock.
+      omp_set_lock(&locks[k]);
+      forces[k][X] -= f_part_k[X];
+      forces[k][Y] -= f_part_k[Y];
+      omp_unset_lock(&locks[k]);
    }
 }  /* Compute_force */
 
