@@ -11,7 +11,7 @@ ORIGINAL_BINS := $(BUILD_DIR)/reference-original \
 REFERENCE_BINS := $(BUILD_DIR)/reference-observation \
 	$(BUILD_DIR)/reference-precise $(BUILD_DIR)/shared-precise
 
-.PHONY: all originals reference smoke test-comparator check-validation check-critical-baseline check-critical-team clean
+.PHONY: all originals reference smoke test-comparator check-validation check-critical-baseline check-critical-team check-critical clean
 
 all: originals
 
@@ -33,6 +33,9 @@ check-critical-baseline: reference $(BUILD_DIR)/critical $(BUILD_DIR)/critical-v
 
 check-critical-team: reference $(BUILD_DIR)/critical $(BUILD_DIR)/critical-validate $(BUILD_DIR)/critical-no-output
 	bash tests/check_critical_team.sh
+
+check-critical: reference $(BUILD_DIR)/critical $(BUILD_DIR)/critical-validate $(BUILD_DIR)/critical-no-output
+	bash tests/check_critical.sh
 
 $(BUILD_DIR):
 	mkdir -p $@
