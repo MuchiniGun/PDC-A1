@@ -11,13 +11,25 @@ ORIGINAL_BINS := $(BUILD_DIR)/reference-original \
 REFERENCE_BINS := $(BUILD_DIR)/reference-observation \
 	$(BUILD_DIR)/reference-precise $(BUILD_DIR)/shared-precise
 
-.PHONY: all originals reference smoke test-comparator check-validation check-critical-baseline check-critical-team check-critical clean
+.PHONY: all originals reference smoke test-comparator check-validation check-critical-baseline check-critical-team check-critical check-locks-setup clean
 
 all: originals
 
 originals: $(ORIGINAL_BINS)
 
 reference: $(REFERENCE_BINS)
+
+$(BUILD_DIR)/locks: part2a_locks.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) $< $(LDLIBS) -o $@
+
+$(BUILD_DIR)/locks-validate: part2a_locks.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) -DVALIDATE $< $(LDLIBS) -o $@
+
+$(BUILD_DIR)/locks-no-output: part2a_locks.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) -DNO_OUTPUT $< $(LDLIBS) -o $@
+
+check-locks-setup: reference $(BUILD_DIR)/locks $(BUILD_DIR)/locks-validate $(BUILD_DIR)/locks-no-output
+	bash tests/check_locks_setup.sh
 
 $(BUILD_DIR)/critical: part2a_critical.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(OMPFLAGS) $< $(LDLIBS) -o $@
