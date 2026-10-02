@@ -11,7 +11,7 @@ ORIGINAL_BINS := $(BUILD_DIR)/reference-original \
 REFERENCE_BINS := $(BUILD_DIR)/reference-observation \
 	$(BUILD_DIR)/reference-precise $(BUILD_DIR)/shared-precise
 
-.PHONY: all originals reference smoke test-comparator check-validation check-critical-baseline check-critical-team check-critical check-locks-setup check-locks clean
+.PHONY: all originals reference smoke test-comparator check-validation check-critical-baseline check-critical-team check-critical check-locks-setup check-locks check-part2a clean
 
 all: originals
 
@@ -51,7 +51,12 @@ check-critical-team: reference $(BUILD_DIR)/critical $(BUILD_DIR)/critical-valid
 	bash tests/check_critical_team.sh
 
 check-critical: reference $(BUILD_DIR)/critical $(BUILD_DIR)/critical-validate $(BUILD_DIR)/critical-no-output
-	bash tests/check_critical.sh
+	bash tests/check_part2a.sh critical
+
+check-part2a: reference $(BUILD_DIR)/critical $(BUILD_DIR)/critical-validate $(BUILD_DIR)/critical-no-output $(BUILD_DIR)/locks $(BUILD_DIR)/locks-validate $(BUILD_DIR)/locks-no-output
+	bash tests/check_part2a.sh critical
+	bash tests/check_part2a.sh locks
+	bash tests/check_standalone.sh
 
 $(BUILD_DIR):
 	mkdir -p $@
