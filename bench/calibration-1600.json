@@ -1,0 +1,10 @@
+{
+  "label": "PILOT",
+  "n": 1600,
+  "n_steps": 1000,
+  "delta_t": 0.01,
+  "threads": [1, 4, 8, 16, 32],
+  "repeats": 2,
+  "timeout_seconds": 120,
+  "cooling_seconds": 0
+}

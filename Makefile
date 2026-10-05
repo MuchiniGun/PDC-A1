@@ -31,6 +31,12 @@ check-build-modes: reference $(PART2B_BINS) $(addsuffix -validate,$(PART2B_BINS)
 	bash tests/check_build_modes.sh
 
 .PHONY: check-part2b
+.PHONY: check-benchmark-workload
+check-benchmark-workload: $(BUILD_DIR)/reference-precise $(addsuffix -validate,$(PART2B_BINS))
+	$(CC) --version
+	@echo "Build options: $(CC) $(CFLAGS) $(OMPFLAGS) -DVALIDATE $(LDLIBS)"
+	bash tests/check_benchmark_workload.sh
+
 check-part2b: reference $(PART2B_BINS) $(addsuffix -validate,$(PART2B_BINS)) $(addsuffix -no-output,$(PART2B_BINS))
 	$(CC) --version
 	@echo "Build options: $(CC) $(CFLAGS) $(OMPFLAGS) $(LDLIBS)"

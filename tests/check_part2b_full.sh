@@ -5,12 +5,6 @@ output=build/validation/part2b-full
 mkdir -p "$output"
 passed=0
 
-# Record the exact sources, including changes not yet committed.
-git rev-parse HEAD
-git status --short
-sha256sum part2b_*.c reference_nbody_red.c timer.h Makefile tools/compare.py \
-    tests/check_part2b_full.sh tests/inputs/noncollinear-4.txt > "$output/sources.sha256"
-cat "$output/sources.sha256"
 echo "Tolerances: atol=1e-6 rtol=1e-10; mass must match exactly"
 echo "Requested teams: 1 2 4 8 16 32; OMP_DYNAMIC=$OMP_DYNAMIC"
 
