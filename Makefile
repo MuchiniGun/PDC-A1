@@ -43,6 +43,19 @@ check-reduced-default: reference $(BUILD_DIR)/part2b-reduced-default $(BUILD_DIR
 
 originals: $(ORIGINAL_BINS)
 
+.PHONY: check-reduced-forces-cyclic
+$(BUILD_DIR)/part2b-reduced-forces-cyclic: part2b_reduced_forces_cyclic.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) $< $(LDLIBS) -o $@
+
+$(BUILD_DIR)/part2b-reduced-forces-cyclic-validate: part2b_reduced_forces_cyclic.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) -DVALIDATE $< $(LDLIBS) -o $@
+
+$(BUILD_DIR)/part2b-reduced-forces-cyclic-no-output: part2b_reduced_forces_cyclic.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) -DNO_OUTPUT $< $(LDLIBS) -o $@
+
+check-reduced-forces-cyclic: reference $(BUILD_DIR)/part2b-reduced-forces-cyclic $(BUILD_DIR)/part2b-reduced-forces-cyclic-validate $(BUILD_DIR)/part2b-reduced-forces-cyclic-no-output
+	bash tests/check_part2b.sh reduced-forces-cyclic
+
 reference: $(REFERENCE_BINS)
 
 $(BUILD_DIR)/locks: part2a_locks.c | $(BUILD_DIR)

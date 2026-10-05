@@ -3,7 +3,7 @@ set -euo pipefail
 export OMP_DYNAMIC=FALSE
 variant=${1:-basic}
 case "$variant" in
-    basic|reduced-default) ;;
+    basic|reduced-default|reduced-forces-cyclic) ;;
     *) echo "Unknown Part 2B variant: $variant" >&2; exit 1 ;;
 esac
 output="build/validation/$variant"
