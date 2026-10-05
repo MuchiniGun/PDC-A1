@@ -279,7 +279,7 @@ void Get_args(int argc, char* argv[], int* thread_count_p, int* n_p,
 void Get_init_cond(struct particle_s curr[], int n) {
    int part;
 
-#  ifndef VALIDATE
+#  if !defined(VALIDATE) && !defined(NO_OUTPUT)
    printf("For each particle, enter (in order):\n");
    printf("   its mass, its x-coord, its y-coord, ");
    printf("its x-velocity, its y-velocity\n");

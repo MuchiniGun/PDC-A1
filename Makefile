@@ -25,6 +25,12 @@ check-build-modes: reference $(PART2B_BINS) $(addsuffix -validate,$(PART2B_BINS)
 	$(CC) --version
 	bash tests/check_build_modes.sh
 
+.PHONY: check-part2b
+check-part2b: reference $(PART2B_BINS) $(addsuffix -validate,$(PART2B_BINS)) $(addsuffix -no-output,$(PART2B_BINS))
+	$(CC) --version
+	@echo "Build options: $(CC) $(CFLAGS) $(OMPFLAGS) $(LDLIBS)"
+	bash tests/check_part2b_full.sh
+
 .PHONY: check-basic
 $(BUILD_DIR)/part2b-basic: part2b_basic.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(OMPFLAGS) $< $(LDLIBS) -o $@
