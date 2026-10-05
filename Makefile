@@ -15,6 +15,19 @@ REFERENCE_BINS := $(BUILD_DIR)/reference-observation \
 
 all: originals
 
+.PHONY: check-basic
+$(BUILD_DIR)/part2b-basic: part2b_basic.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) $< $(LDLIBS) -o $@
+
+$(BUILD_DIR)/part2b-basic-validate: part2b_basic.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) -DVALIDATE $< $(LDLIBS) -o $@
+
+$(BUILD_DIR)/part2b-basic-no-output: part2b_basic.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) -DNO_OUTPUT $< $(LDLIBS) -o $@
+
+check-basic: reference $(BUILD_DIR)/part2b-basic $(BUILD_DIR)/part2b-basic-validate $(BUILD_DIR)/part2b-basic-no-output
+	bash tests/check_basic.sh
+
 originals: $(ORIGINAL_BINS)
 
 reference: $(REFERENCE_BINS)
