@@ -20,6 +20,11 @@ all: originals
 
 PART2B_NAMES := basic reduced-default reduced-forces-cyclic reduced-all-cyclic
 PART2B_BINS := $(addprefix $(BUILD_DIR)/part2b-,$(PART2B_NAMES))
+.PHONY: benchmark-build
+benchmark-build: $(addsuffix -no-output,$(PART2B_BINS))
+	$(CC) --version
+	@echo "Build options: $(CC) $(CFLAGS) $(OMPFLAGS) -DNO_OUTPUT $(LDLIBS)"
+
 .PHONY: check-build-modes
 check-build-modes: reference $(PART2B_BINS) $(addsuffix -validate,$(PART2B_BINS)) $(addsuffix -no-output,$(PART2B_BINS))
 	$(CC) --version
