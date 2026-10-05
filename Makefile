@@ -43,6 +43,19 @@ check-reduced-default: reference $(BUILD_DIR)/part2b-reduced-default $(BUILD_DIR
 
 originals: $(ORIGINAL_BINS)
 
+.PHONY: check-reduced-all-cyclic
+$(BUILD_DIR)/part2b-reduced-all-cyclic: part2b_reduced_all_cyclic.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) $< $(LDLIBS) -o $@
+
+$(BUILD_DIR)/part2b-reduced-all-cyclic-validate: part2b_reduced_all_cyclic.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) -DVALIDATE $< $(LDLIBS) -o $@
+
+$(BUILD_DIR)/part2b-reduced-all-cyclic-no-output: part2b_reduced_all_cyclic.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) -DNO_OUTPUT $< $(LDLIBS) -o $@
+
+check-reduced-all-cyclic: reference $(BUILD_DIR)/part2b-reduced-all-cyclic $(BUILD_DIR)/part2b-reduced-all-cyclic-validate $(BUILD_DIR)/part2b-reduced-all-cyclic-no-output
+	bash tests/check_part2b.sh reduced-all-cyclic
+
 .PHONY: check-reduced-forces-cyclic
 $(BUILD_DIR)/part2b-reduced-forces-cyclic: part2b_reduced_forces_cyclic.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(OMPFLAGS) $< $(LDLIBS) -o $@
