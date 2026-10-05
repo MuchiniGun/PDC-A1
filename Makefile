@@ -1,4 +1,7 @@
 CC ?= gcc
+ifeq ($(origin CC), default)
+CC = gcc
+endif
 CFLAGS ?= -O2 -g -Wall -Wextra
 OMPFLAGS ?= -fopenmp
 LDLIBS ?= -lm
@@ -14,6 +17,13 @@ REFERENCE_BINS := $(BUILD_DIR)/reference-observation \
 .PHONY: all originals reference smoke test-comparator check-validation check-critical-baseline check-critical-team check-critical check-locks-setup check-locks check-part2a clean
 
 all: originals
+
+PART2B_NAMES := basic reduced-default reduced-forces-cyclic reduced-all-cyclic
+PART2B_BINS := $(addprefix $(BUILD_DIR)/part2b-,$(PART2B_NAMES))
+.PHONY: check-build-modes
+check-build-modes: reference $(PART2B_BINS) $(addsuffix -validate,$(PART2B_BINS)) $(addsuffix -no-output,$(PART2B_BINS))
+	$(CC) --version
+	bash tests/check_build_modes.sh
 
 .PHONY: check-basic
 $(BUILD_DIR)/part2b-basic: part2b_basic.c | $(BUILD_DIR)

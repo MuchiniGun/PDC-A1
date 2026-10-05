@@ -55,6 +55,10 @@
 #include <limits.h>
 #include <stdint.h>
 
+#if defined(NO_OUTPUT) && (defined(VALIDATE) || defined(DEBUG) || defined(COMPUTE_ENERGY))
+#error "NO_OUTPUT must not be combined with validation, debug or energy output"
+#endif
+
 #define DIM 2  /* Two-dimensional system */
 #define X 0    /* x-coordinate subscript */
 #define Y 1    /* y-coordinate subscript */
@@ -177,11 +181,9 @@ int main(int argc, char* argv[]) {
       }  /* for step */
    }  /* pragma omp parallel */
    finish = omp_get_wtime();
-#  ifdef VALIDATE
+   // Report the actual team after timing, including in benchmark builds.
+   fprintf(stderr, "requested_team=%d\n", thread_count);
    fprintf(stderr, "observed_team=%d\n", actual_threads);
-#  else
-   (void)actual_threads;
-#  endif
    printf("Elapsed time = %e seconds\n", finish-start);
 
    free(curr);
