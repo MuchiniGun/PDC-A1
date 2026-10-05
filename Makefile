@@ -26,7 +26,20 @@ $(BUILD_DIR)/part2b-basic-no-output: part2b_basic.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(OMPFLAGS) -DNO_OUTPUT $< $(LDLIBS) -o $@
 
 check-basic: reference $(BUILD_DIR)/part2b-basic $(BUILD_DIR)/part2b-basic-validate $(BUILD_DIR)/part2b-basic-no-output
-	bash tests/check_basic.sh
+	bash tests/check_part2b.sh basic
+
+.PHONY: check-reduced-default
+$(BUILD_DIR)/part2b-reduced-default: part2b_reduced_default.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) $< $(LDLIBS) -o $@
+
+$(BUILD_DIR)/part2b-reduced-default-validate: part2b_reduced_default.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) -DVALIDATE $< $(LDLIBS) -o $@
+
+$(BUILD_DIR)/part2b-reduced-default-no-output: part2b_reduced_default.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OMPFLAGS) -DNO_OUTPUT $< $(LDLIBS) -o $@
+
+check-reduced-default: reference $(BUILD_DIR)/part2b-reduced-default $(BUILD_DIR)/part2b-reduced-default-validate $(BUILD_DIR)/part2b-reduced-default-no-output
+	bash tests/check_part2b.sh reduced-default
 
 originals: $(ORIGINAL_BINS)
 
