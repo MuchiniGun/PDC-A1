@@ -1,0 +1,63 @@
+Started: 2026-10-05T15:11:45.904070+00:00
+Platform: Linux-6.10.14-linuxkit-x86_64-with-glibc2.35
+Input: generated (g); output frequency: n_steps
+Order: repeat, variant, threads; no warm-ups; retain all valid runs
+On failure: stop, preserve partial batch, restart in a new directory
+OpenMP environment:
+OMP_DYNAMIC=FALSE
+$ git rev-parse HEAD
+86bdd03720686b5276ad5bcad7008be873520fc9
+$ git status --short
+?? .vscode/
+$ lscpu
+Architecture:                         x86_64
+CPU op-mode(s):                       32-bit
+Byte Order:                           Little Endian
+CPU(s):                               8
+On-line CPU(s) list:                  0-7
+Vendor ID:                            Apple
+Model:                                0
+Thread(s) per core:                   1
+Core(s) per socket:                   8
+Socket(s):                            1
+Stepping:                             0x0
+BogoMIPS:                             48.00
+Flags:                                fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint
+Vulnerability Gather data sampling:   Not affected
+Vulnerability Itlb multihit:          Not affected
+Vulnerability L1tf:                   Not affected
+Vulnerability Mds:                    Not affected
+Vulnerability Meltdown:               Not affected
+Vulnerability Mmio stale data:        Not affected
+Vulnerability Reg file data sampling: Not affected
+Vulnerability Retbleed:               Not affected
+Vulnerability Spec rstack overflow:   Not affected
+Vulnerability Spec store bypass:      Vulnerable
+Vulnerability Spectre v1:             Mitigation; __user pointer sanitization
+Vulnerability Spectre v2:             Not affected
+Vulnerability Srbds:                  Not affected
+Vulnerability Tsx async abort:        Not affected
+/sys/fs/cgroup/cpu.max: max 100000
+/sys/fs/cgroup/cpuset.cpus.effective: 0-7
+/sys/fs/cgroup/memory.max: max
+basic runtime libraries:
+	libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007fffff6d0000)
+	libgomp.so.1 => /lib/x86_64-linux-gnu/libgomp.so.1 (0x00007fffff686000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fffff45d000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007ffffffc4000)
+reduced-default runtime libraries:
+	libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007fffff6cf000)
+	libgomp.so.1 => /lib/x86_64-linux-gnu/libgomp.so.1 (0x00007fffff685000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fffff45c000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007ffffffc4000)
+reduced-forces-cyclic runtime libraries:
+	libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007fffff6cf000)
+	libgomp.so.1 => /lib/x86_64-linux-gnu/libgomp.so.1 (0x00007fffff685000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fffff45c000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007ffffffc4000)
+reduced-all-cyclic runtime libraries:
+	libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007fffff6d0000)
+	libgomp.so.1 => /lib/x86_64-linux-gnu/libgomp.so.1 (0x00007fffff686000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fffff45d000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007ffffffc4000)
+Completed: 2026-10-05T15:15:28.628198+00:00
