@@ -17,4 +17,4 @@ for variant in critical locks; do
     python3 tools/compare.py "$repo/tests/expected/reference-n4-steps2.csv" "$build_dir/output.csv"
     echo "$variant standalone build and comparison passed"
 done
-echo "Part 2A checks passed: 156 matrix comparisons and 2 standalone comparisons"
+echo "Part 2A standalone checks passed: 2 comparisons"
